@@ -1,5 +1,5 @@
 use egui::epaint::Shadow;
-use egui::{Align, Color32, Direction, Label, Layout, ProgressBar, RichText, Visuals};
+use egui::{Align, Color32, Direction, Label, Layout, ProgressBar, RichText, Slider, Visuals};
 use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
 use std::ffi::{c_void, CStr, CString};
@@ -163,8 +163,10 @@ fn main() {
 
     let mut last_time = Instant::now();
     let mut counter = 0;
+    let mut fps = 0;
 
     let mut angle = 0.0;
+    let mut rotation_speed = 0;
 
     let mut delta_time = Instant::now();
 
@@ -176,12 +178,7 @@ fn main() {
         color: Color32::from_black_alpha(96),
     };
     visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
-
     egui_glow.egui_ctx.set_visuals(visuals.clone());
-
-    let mut color: [f32; 3] = [0.0, 0.0, 0.0];
-    let mut open = true;
-    let mut text = String::new();
 
     el.run(move |e, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -207,13 +204,14 @@ fn main() {
                 if last_time.elapsed().as_millis() < 1000 {
                     counter += 1;
                 } else {
-                    info!("FPS: {}", counter);
+                    fps = counter;
                     last_time = Instant::now();
                     counter = 0;
                 }
-                if delta_time.elapsed().as_secs_f32() > 1.0 / 120.0 {
+
+                if delta_time.elapsed().as_secs_f32() > 1.0 / 60.0 {
                     delta_time = Instant::now();
-                    angle += 0.01;
+                    angle += rotation_speed as f32 / 1000.0;
                 }
 
                 let rotation = Mat4::from_rotation_z(angle);
@@ -237,14 +235,21 @@ fn main() {
 
                 let (needs_repaint, shapes) =
                     egui_glow.run(windowed_context.window(), |egui_ctx| {
-                        egui::Window::new("Hello World")
+                        egui::Window::new("Debug")
                             .resizable(true)
                             .default_size((60.0, 40.0))
                             .show(egui_ctx, |ui| {
-                                if ui.button("Quit").clicked() {
-                                    quit = true;
-                                }
-                                ui.allocate_space(ui.available_size());
+                                ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+                                    ui.label(format!("FPS: {}", fps));
+                                    ui.add(
+                                        Slider::new(&mut rotation_speed, 0..=100)
+                                            .text("Rotation speed"),
+                                    );
+                                    if ui.button("Quit").clicked() {
+                                        quit = true;
+                                    }
+                                    ui.allocate_space(ui.available_size());
+                                });
                             });
                     });
 
