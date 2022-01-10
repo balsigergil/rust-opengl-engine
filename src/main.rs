@@ -1,3 +1,6 @@
+use egui::epaint::Shadow;
+use egui::{Align, Color32, Direction, Label, Layout, ProgressBar, RichText, Visuals};
+use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
 use std::ffi::{c_void, CStr, CString};
 use std::mem::size_of;
@@ -56,7 +59,7 @@ extern "system" fn debug_callback(
 
 fn main() {
     TermLogger::init(
-        LevelFilter::Trace,
+        LevelFilter::Debug,
         ConfigBuilder::default().build(),
         TerminalMode::Mixed,
         ColorChoice::Always,
@@ -82,7 +85,12 @@ fn main() {
 
     gl::load(|s| windowed_context.get_proc_address(s));
 
+    let gl_context =
+        unsafe { glow::Context::from_loader_function(|e| windowed_context.get_proc_address(e)) };
+
     windowed_context.window().set_visible(true);
+
+    let mut egui_glow = EguiGlow::new(&windowed_context, &gl_context);
 
     unsafe {
         gl::Viewport(0, 0, WIDTH as i32, HEIGHT as i32);
@@ -160,42 +168,95 @@ fn main() {
 
     let mut delta_time = Instant::now();
 
+    let mut quit = false;
+
+    let mut visuals = Visuals::default();
+    visuals.window_shadow = Shadow {
+        extrusion: 8.0,
+        color: Color32::from_black_alpha(96),
+    };
+    visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
+
+    egui_glow.egui_ctx.set_visuals(visuals.clone());
+
+    let mut color: [f32; 3] = [0.0, 0.0, 0.0];
+    let mut open = true;
+    let mut text = String::new();
+
     el.run(move |e, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        if last_time.elapsed().as_millis() < 1000 {
-            counter += 1;
-        } else {
-            info!("FPS: {}", counter);
-            last_time = Instant::now();
-            counter = 0;
+        if quit {
+            *control_flow = ControlFlow::Exit;
         }
-        if delta_time.elapsed().as_secs_f32() > 1.0 / 120.0 {
-            delta_time = Instant::now();
-            angle += 0.01;
-        }
-        let rotation = Mat4::from_rotation_z(angle);
-        unsafe {
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            let location = CString::new("rotation").unwrap();
-            gl::UniformMatrix4fv(
-                gl::GetUniformLocation(shader.id, location.as_ptr()),
-                1,
-                gl::FALSE,
-                rotation.as_ref().as_ptr(),
-            );
-
-            gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());
-        }
-        windowed_context.swap_buffers().unwrap();
 
         match e {
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                _ => (),
-            },
+            Event::WindowEvent { event, .. } => {
+                egui_glow.on_event(&event);
+                match event {
+                    WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
+                    WindowEvent::CloseRequested | WindowEvent::Destroyed => {
+                        *control_flow = ControlFlow::Exit
+                    }
+                    _ => (),
+                }
+                windowed_context.window().request_redraw();
+            }
+            Event::RedrawEventsCleared => windowed_context.window().request_redraw(),
+            Event::RedrawRequested(_) => {
+                if last_time.elapsed().as_millis() < 1000 {
+                    counter += 1;
+                } else {
+                    info!("FPS: {}", counter);
+                    last_time = Instant::now();
+                    counter = 0;
+                }
+                if delta_time.elapsed().as_secs_f32() > 1.0 / 120.0 {
+                    delta_time = Instant::now();
+                    angle += 0.01;
+                }
+
+                let rotation = Mat4::from_rotation_z(angle);
+                unsafe {
+                    gl::Clear(gl::COLOR_BUFFER_BIT);
+
+                    vao.bind();
+                    shader.bind();
+                    logo.bind();
+
+                    let location = CString::new("rotation").unwrap();
+                    gl::UniformMatrix4fv(
+                        gl::GetUniformLocation(shader.id, location.as_ptr()),
+                        1,
+                        gl::FALSE,
+                        rotation.as_ref().as_ptr(),
+                    );
+
+                    gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());
+                }
+
+                let (needs_repaint, shapes) =
+                    egui_glow.run(windowed_context.window(), |egui_ctx| {
+                        egui::Window::new("Hello World")
+                            .resizable(true)
+                            .default_size((60.0, 40.0))
+                            .show(egui_ctx, |ui| {
+                                if ui.button("Quit").clicked() {
+                                    quit = true;
+                                }
+                                ui.allocate_space(ui.available_size());
+                            });
+                    });
+
+                if needs_repaint {
+                    windowed_context.window().request_redraw();
+                }
+
+                egui_glow.paint(&windowed_context, &gl_context, shapes);
+
+                windowed_context.swap_buffers().unwrap();
+            }
+            Event::LoopDestroyed => egui_glow.destroy(&gl_context),
             _ => (),
         };
     })
