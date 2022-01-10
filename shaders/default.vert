@@ -8,11 +8,11 @@ layout (location = 3) in vec2 inTexCoord;
 out vec3 color;
 out vec2 texCoord;
 
-uniform mat4 rotation;
+uniform mat4 uMVP;
 
 void main()
 {
-    gl_Position = rotation * vec4(inPosition, 1.0f);
+    gl_Position = uMVP * vec4(inPosition, 1.0f);
     color = inColor;
     texCoord = inTexCoord;
 }

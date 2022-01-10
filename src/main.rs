@@ -1,7 +1,8 @@
 use egui::epaint::Shadow;
-use egui::{Align, Color32, Direction, Label, Layout, ProgressBar, RichText, Slider, Visuals};
+use egui::{Align, Color32, Layout, Slider, Visuals};
 use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
+use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
 use std::mem::size_of;
 use std::os::raw::c_char;
@@ -18,13 +19,14 @@ use crate::utils::print_debug_infos;
 use crate::vao::Vao;
 use crate::vbo::Vbo;
 use crate::vertex::Vertex;
+use glutin::event::{ElementState, MouseScrollDelta, VirtualKeyCode};
 use glutin::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     Api, ContextBuilder, GlProfile, GlRequest,
 };
-use log::{error, info, trace, LevelFilter};
+use log::{error, trace, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 
 mod camera;
@@ -66,8 +68,8 @@ fn main() {
     )
     .unwrap();
 
-    const WIDTH: u32 = 800;
-    const HEIGHT: u32 = 800;
+    const WIDTH: u32 = 1280;
+    const HEIGHT: u32 = 720;
 
     let el = EventLoop::new();
     let wb = WindowBuilder::new()
@@ -87,8 +89,6 @@ fn main() {
 
     let gl_context =
         unsafe { glow::Context::from_loader_function(|e| windowed_context.get_proc_address(e)) };
-
-    windowed_context.window().set_visible(true);
 
     let mut egui_glow = EguiGlow::new(&windowed_context, &gl_context);
 
@@ -161,6 +161,9 @@ fn main() {
         gl::Uniform1i(gl::GetUniformLocation(shader.id, location.as_ptr()), 0);
     }
 
+    let mut zoom_level = 1.0;
+    let mut camera_position = Vec3::new(0.0, 0.0, 0.0);
+
     let mut last_time = Instant::now();
     let mut counter = 0;
     let mut fps = 0;
@@ -180,6 +183,11 @@ fn main() {
     visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
     egui_glow.egui_ctx.set_visuals(visuals.clone());
 
+    let camera_speed = 0.02;
+    let mut inputs = HashMap::new();
+
+    windowed_context.window().set_visible(true);
+
     el.run(move |e, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -194,6 +202,17 @@ fn main() {
                     WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
                     WindowEvent::CloseRequested | WindowEvent::Destroyed => {
                         *control_flow = ControlFlow::Exit
+                    }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        if let Some(keycode) = input.virtual_keycode {
+                            inputs.insert(keycode, input.state == ElementState::Pressed);
+                        }
+                    }
+                    WindowEvent::MouseWheel { delta, .. } => {
+                        if let MouseScrollDelta::LineDelta(.., amount) = delta {
+                            zoom_level -= amount * 0.25;
+                            zoom_level = zoom_level.max(0.25);
+                        }
                     }
                     _ => (),
                 }
@@ -212,9 +231,20 @@ fn main() {
                 if delta_time.elapsed().as_secs_f32() > 1.0 / 60.0 {
                     delta_time = Instant::now();
                     angle += rotation_speed as f32 / 1000.0;
+                    if *inputs.get(&VirtualKeyCode::A).unwrap_or(&false) {
+                        camera_position.x -= camera_speed;
+                    }
+                    if *inputs.get(&VirtualKeyCode::D).unwrap_or(&false) {
+                        camera_position.x += camera_speed;
+                    }
+                    if *inputs.get(&VirtualKeyCode::S).unwrap_or(&false) {
+                        camera_position.y -= camera_speed;
+                    }
+                    if *inputs.get(&VirtualKeyCode::W).unwrap_or(&false) {
+                        camera_position.y += camera_speed;
+                    }
                 }
 
-                let rotation = Mat4::from_rotation_z(angle);
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
 
@@ -222,12 +252,23 @@ fn main() {
                     shader.bind();
                     logo.bind();
 
-                    let location = CString::new("rotation").unwrap();
+                    let projection = Mat4::orthographic_rh_gl(
+                        -zoom_level,
+                        zoom_level,
+                        HEIGHT as f32 * -zoom_level / WIDTH as f32,
+                        HEIGHT as f32 * zoom_level / WIDTH as f32,
+                        -1.0,
+                        1.0,
+                    );
+                    let view = Mat4::from_translation(camera_position);
+                    let model = Mat4::from_rotation_z(angle);
+                    let mvp = projection * view * model;
+                    let location = CString::new("uMVP").unwrap();
                     gl::UniformMatrix4fv(
                         gl::GetUniformLocation(shader.id, location.as_ptr()),
                         1,
                         gl::FALSE,
-                        rotation.as_ref().as_ptr(),
+                        mvp.as_ref().as_ptr(),
                     );
 
                     gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());

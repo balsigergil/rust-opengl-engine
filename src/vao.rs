@@ -50,7 +50,7 @@ impl Vao {
 impl Drop for Vao {
     fn drop(&mut self) {
         unsafe {
-            // gl::DeleteVertexArrays(1, &self.id);
+            gl::DeleteVertexArrays(1, &self.id);
         }
     }
 }
