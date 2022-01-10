@@ -18,6 +18,7 @@ impl Vbo {
                 vertices.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         }
         Vbo { id }
     }

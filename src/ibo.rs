@@ -18,6 +18,7 @@ impl Ibo {
                 indices.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
         }
         Ibo {
             id,

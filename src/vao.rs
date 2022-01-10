@@ -9,7 +9,6 @@ impl Vao {
         let mut id = 0;
         unsafe {
             gl::GenVertexArrays(1, &mut id);
-            gl::BindVertexArray(id);
         }
         Vao { id }
     }
@@ -51,7 +50,7 @@ impl Vao {
 impl Drop for Vao {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteVertexArrays(1, &self.id);
+            // gl::DeleteVertexArrays(1, &self.id);
         }
     }
 }

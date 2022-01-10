@@ -10,7 +10,7 @@ use log::error;
 use crate::gl;
 
 pub struct Shader {
-    id: u32,
+    pub id: u32,
 }
 
 impl Shader {
@@ -24,7 +24,7 @@ impl Shader {
         let mut fragment_source = String::new();
         fragment_file.read_to_string(&mut fragment_source).unwrap();
 
-        let mut program_id = 0;
+        let program_id;
 
         unsafe {
             let vert_id = compile_shader(gl::VERTEX_SHADER, vertex_source);
