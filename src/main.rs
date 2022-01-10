@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3};
 use std::ffi::{c_void, CStr, CString};
 use std::mem::size_of;
 use std::os::raw::c_char;
@@ -156,8 +156,13 @@ fn main() {
     let mut last_time = Instant::now();
     let mut counter = 0;
 
+    let mut angle = 0.0;
+
+    let mut delta_time = Instant::now();
+
     el.run(move |e, _, control_flow| {
         *control_flow = ControlFlow::Poll;
+
         if last_time.elapsed().as_millis() < 1000 {
             counter += 1;
         } else {
@@ -165,19 +170,32 @@ fn main() {
             last_time = Instant::now();
             counter = 0;
         }
+        if delta_time.elapsed().as_secs_f32() > 1.0 / 120.0 {
+            delta_time = Instant::now();
+            angle += 0.01;
+        }
+        let rotation = Mat4::from_rotation_z(angle);
+        unsafe {
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            let location = CString::new("rotation").unwrap();
+            gl::UniformMatrix4fv(
+                gl::GetUniformLocation(shader.id, location.as_ptr()),
+                1,
+                gl::FALSE,
+                rotation.as_ref().as_ptr(),
+            );
+
+            gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());
+        }
+        windowed_context.swap_buffers().unwrap();
+
         match e {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
-                unsafe {
-                    gl::Clear(gl::COLOR_BUFFER_BIT);
-                    gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());
-                }
-                windowed_context.swap_buffers().unwrap();
-            }
             _ => (),
         };
     })
