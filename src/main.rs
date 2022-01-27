@@ -12,6 +12,7 @@ use std::time::Instant;
 
 use glad::gl;
 
+use crate::camera::Camera;
 use crate::ibo::Ibo;
 use crate::shader::Shader;
 use crate::texture::Texture;
@@ -19,7 +20,8 @@ use crate::utils::print_debug_infos;
 use crate::vao::Vao;
 use crate::vbo::Vbo;
 use crate::vertex::Vertex;
-use glutin::event::{ElementState, MouseScrollDelta, VirtualKeyCode};
+use glutin::dpi::PhysicalPosition;
+use glutin::event::{ElementState, MouseButton};
 use glutin::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -161,17 +163,16 @@ fn main() {
         gl::Uniform1i(gl::GetUniformLocation(shader.id, location.as_ptr()), 0);
     }
 
-    let mut zoom_level = 1.0;
-    let mut camera_position = Vec3::new(0.0, 0.0, 0.0);
+    let mut camera = Camera::new(45.0, Vec3::new(0.0, 0.0, 3.0), WIDTH as f32, HEIGHT as f32);
 
-    let mut last_time = Instant::now();
+    let mut fps_timer = Instant::now();
     let mut counter = 0;
     let mut fps = 0;
 
     let mut angle = 0.0;
     let mut rotation_speed = 0;
 
-    let mut delta_time = Instant::now();
+    let mut last_time = Instant::now();
 
     let mut quit = false;
 
@@ -183,8 +184,9 @@ fn main() {
     visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
     egui_glow.egui_ctx.set_visuals(visuals.clone());
 
-    let camera_speed = 0.02;
     let mut inputs = HashMap::new();
+
+    let mut mouse_captured = false;
 
     windowed_context.window().set_visible(true);
 
@@ -197,53 +199,66 @@ fn main() {
 
         match e {
             Event::WindowEvent { event, .. } => {
-                egui_glow.on_event(&event);
-                match event {
-                    WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
-                    WindowEvent::CloseRequested | WindowEvent::Destroyed => {
-                        *control_flow = ControlFlow::Exit
-                    }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(keycode) = input.virtual_keycode {
-                            inputs.insert(keycode, input.state == ElementState::Pressed);
+                if !egui_glow.on_event(&event) {
+                    match event {
+                        WindowEvent::Resized(physical_size) => {
+                            windowed_context.resize(physical_size)
                         }
-                    }
-                    WindowEvent::MouseWheel { delta, .. } => {
-                        if let MouseScrollDelta::LineDelta(.., amount) = delta {
-                            zoom_level -= amount * 0.25;
-                            zoom_level = zoom_level.max(0.25);
+                        WindowEvent::CloseRequested | WindowEvent::Destroyed => {
+                            *control_flow = ControlFlow::Exit
                         }
+                        WindowEvent::KeyboardInput { input, .. } => {
+                            if let Some(keycode) = input.virtual_keycode {
+                                inputs.insert(keycode, input.state == ElementState::Pressed);
+                            }
+                        }
+                        WindowEvent::MouseInput { state, button, .. } => {
+                            if button == MouseButton::Left && state == ElementState::Pressed {
+                                windowed_context.window().set_cursor_visible(false);
+                                windowed_context
+                                    .window()
+                                    .set_cursor_position(PhysicalPosition::new(
+                                        WIDTH as f64 / 2.0,
+                                        HEIGHT as f64 / 2.0,
+                                    ))
+                                    .unwrap();
+                                mouse_captured = true;
+                            } else {
+                                windowed_context.window().set_cursor_visible(true);
+                                mouse_captured = false;
+                            }
+                        }
+                        WindowEvent::CursorMoved { position, .. } => {
+                            if mouse_captured {
+                                camera.update_orientation(position);
+                                windowed_context
+                                    .window()
+                                    .set_cursor_position(PhysicalPosition::new(
+                                        WIDTH as f64 / 2.0,
+                                        HEIGHT as f64 / 2.0,
+                                    ))
+                                    .unwrap();
+                            }
+                        }
+                        _ => (),
                     }
-                    _ => (),
                 }
-                windowed_context.window().request_redraw();
             }
             Event::RedrawEventsCleared => windowed_context.window().request_redraw(),
             Event::RedrawRequested(_) => {
-                if last_time.elapsed().as_millis() < 1000 {
+                let delta_time = last_time.elapsed();
+                last_time = Instant::now();
+
+                if fps_timer.elapsed().as_millis() < 1000 {
                     counter += 1;
                 } else {
                     fps = counter;
-                    last_time = Instant::now();
+                    fps_timer = Instant::now();
                     counter = 0;
                 }
 
-                if delta_time.elapsed().as_secs_f32() > 1.0 / 60.0 {
-                    delta_time = Instant::now();
-                    angle += rotation_speed as f32 / 1000.0;
-                    if *inputs.get(&VirtualKeyCode::A).unwrap_or(&false) {
-                        camera_position.x -= camera_speed;
-                    }
-                    if *inputs.get(&VirtualKeyCode::D).unwrap_or(&false) {
-                        camera_position.x += camera_speed;
-                    }
-                    if *inputs.get(&VirtualKeyCode::S).unwrap_or(&false) {
-                        camera_position.y -= camera_speed;
-                    }
-                    if *inputs.get(&VirtualKeyCode::W).unwrap_or(&false) {
-                        camera_position.y += camera_speed;
-                    }
-                }
+                camera.update_position(&inputs, delta_time);
+                angle += rotation_speed as f32 * delta_time.as_secs_f32() / 10.0;
 
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
@@ -252,17 +267,8 @@ fn main() {
                     shader.bind();
                     logo.bind();
 
-                    let projection = Mat4::orthographic_rh_gl(
-                        -zoom_level,
-                        zoom_level,
-                        HEIGHT as f32 * -zoom_level / WIDTH as f32,
-                        HEIGHT as f32 * zoom_level / WIDTH as f32,
-                        -1.0,
-                        1.0,
-                    );
-                    let view = Mat4::from_translation(camera_position);
                     let model = Mat4::from_rotation_z(angle);
-                    let mvp = projection * view * model;
+                    let mvp = camera.get_matrix() * model;
                     let location = CString::new("uMVP").unwrap();
                     gl::UniformMatrix4fv(
                         gl::GetUniformLocation(shader.id, location.as_ptr()),
