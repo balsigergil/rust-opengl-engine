@@ -1,5 +1,6 @@
 use crate::gl;
 
+#[derive(Debug)]
 pub struct Vao {
     id: u32,
 }

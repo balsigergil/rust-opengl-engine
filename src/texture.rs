@@ -3,6 +3,7 @@ use image::io::Reader as ImageReader;
 use image::GenericImageView;
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct Texture {
     id: u32,
 }

@@ -4,7 +4,6 @@ use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
-use std::mem::size_of;
 use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::null;
@@ -14,6 +13,7 @@ use glad::gl;
 
 use crate::camera::Camera;
 use crate::ibo::Ibo;
+use crate::mesh::Mesh;
 use crate::shader::Shader;
 use crate::texture::Texture;
 use crate::utils::print_debug_infos;
@@ -130,38 +130,18 @@ fn main() {
         },
     ];
 
-    let vao = Vao::new();
-    vao.bind();
-    let vbo = Vbo::new(&vertices);
-    vbo.bind();
     let indices = vec![0, 1, 2, 2, 3, 0];
-    let ibo = Ibo::new(&indices);
-    ibo.bind();
-
-    vao.add_layout(0, 3, gl::FLOAT, size_of::<Vertex>(), 0);
-    vao.add_layout(1, 3, gl::FLOAT, size_of::<Vertex>(), 3 * size_of::<f32>());
-    vao.add_layout(2, 3, gl::FLOAT, size_of::<Vertex>(), 6 * size_of::<f32>());
-    vao.add_layout(3, 2, gl::FLOAT, size_of::<Vertex>(), 9 * size_of::<f32>());
-
-    vao.unbind();
-    ibo.unbind();
-    vbo.unbind();
 
     let logo = Texture::new(Path::new("res/logo.png"));
-    logo.bind();
+    let mesh = Mesh::new(vertices, indices, vec![logo]);
 
-    let shader = Shader::new(
+    let mut shader = Shader::new(
         Path::new("shaders/default.vert"),
         Path::new("shaders/default.frag"),
     );
 
     shader.bind();
-    vao.bind();
-
-    unsafe {
-        let location = CString::new("uTexture").unwrap();
-        gl::Uniform1i(gl::GetUniformLocation(shader.id, location.as_ptr()), 0);
-    }
+    shader.set_uniform_1_i("uTexture", 0);
 
     let mut camera = Camera::new(45.0, Vec3::new(0.0, 0.0, 3.0), WIDTH as f32, HEIGHT as f32);
 
@@ -263,9 +243,7 @@ fn main() {
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
 
-                    vao.bind();
                     shader.bind();
-                    logo.bind();
 
                     let model = Mat4::from_rotation_z(angle);
                     let mvp = camera.get_matrix() * model;
@@ -277,7 +255,7 @@ fn main() {
                         mvp.as_ref().as_ptr(),
                     );
 
-                    gl::DrawElements(gl::TRIANGLES, ibo.count(), gl::UNSIGNED_INT, null());
+                    mesh.draw();
                 }
 
                 let (needs_repaint, shapes) =

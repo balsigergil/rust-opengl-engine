@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fs::File;
 use std::io::Read;
@@ -8,9 +9,11 @@ use std::ptr::null;
 use log::error;
 
 use crate::gl;
+use crate::gl::GLint;
 
 pub struct Shader {
     pub id: u32,
+    location_cache: HashMap<String, GLint>,
 }
 
 impl Shader {
@@ -37,7 +40,10 @@ impl Shader {
             gl::DeleteShader(frag_id);
         }
 
-        Shader { id: program_id }
+        Shader {
+            id: program_id,
+            location_cache: HashMap::new(),
+        }
     }
 
     pub fn bind(&self) {
@@ -49,6 +55,27 @@ impl Shader {
     pub fn unbind(&self) {
         unsafe {
             gl::UseProgram(0);
+        }
+    }
+
+    pub fn set_uniform_1_i(&mut self, location: &str, value: i32) {
+        self.bind();
+        unsafe {
+            let location_index = self.get_location(location);
+            gl::Uniform1i(location_index, value);
+        }
+    }
+
+    fn get_location(&mut self, location: &str) -> GLint {
+        self.bind();
+        unsafe {
+            *self
+                .location_cache
+                .entry(location.to_string())
+                .or_insert_with(|| {
+                    let location = CString::new(location).unwrap();
+                    gl::GetUniformLocation(self.id, location.as_ptr())
+                })
         }
     }
 }
