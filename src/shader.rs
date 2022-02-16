@@ -1,3 +1,4 @@
+use glam::Mat4;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fs::File;
@@ -59,15 +60,20 @@ impl Shader {
     }
 
     pub fn set_uniform_1_i(&mut self, location: &str, value: i32) {
-        self.bind();
         unsafe {
             let location_index = self.get_location(location);
             gl::Uniform1i(location_index, value);
         }
     }
 
+    pub fn set_uniform_mat4(&mut self, location: &str, matrix: Mat4) {
+        unsafe {
+            let location_index = self.get_location(location);
+            gl::UniformMatrix4fv(location_index, 1, gl::FALSE, matrix.as_ref().as_ptr());
+        }
+    }
+
     fn get_location(&mut self, location: &str) -> GLint {
-        self.bind();
         unsafe {
             *self
                 .location_cache

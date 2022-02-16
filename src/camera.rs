@@ -1,7 +1,6 @@
 use glam::{Mat4, Vec3};
 use glutin::dpi::PhysicalPosition;
 use glutin::event::VirtualKeyCode;
-use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -61,29 +60,25 @@ impl Camera {
         .normalize();
     }
 
-    pub fn update_position(
-        &mut self,
-        inputs: &HashMap<VirtualKeyCode, bool>,
-        delta_time: Duration,
-    ) {
-        if *inputs.get(&VirtualKeyCode::W).unwrap_or(&false) {
+    pub fn update_position(&mut self, inputs: &[bool], delta_time: Duration) {
+        if inputs[VirtualKeyCode::W as usize] {
             self.position += self.speed * delta_time.as_secs_f32() * self.orientation;
         }
-        if *inputs.get(&VirtualKeyCode::S).unwrap_or(&false) {
+        if inputs[VirtualKeyCode::S as usize] {
             self.position -= self.speed * delta_time.as_secs_f32() * self.orientation;
         }
-        if *inputs.get(&VirtualKeyCode::A).unwrap_or(&false) {
+        if inputs[VirtualKeyCode::A as usize] {
             self.position -=
                 self.speed * delta_time.as_secs_f32() * self.orientation.cross(self.up).normalize();
         }
-        if *inputs.get(&VirtualKeyCode::D).unwrap_or(&false) {
+        if inputs[VirtualKeyCode::D as usize] {
             self.position +=
                 self.speed * delta_time.as_secs_f32() * self.orientation.cross(self.up).normalize();
         }
-        if *inputs.get(&VirtualKeyCode::E).unwrap_or(&false) {
+        if inputs[VirtualKeyCode::E as usize] {
             self.position.y += self.speed * delta_time.as_secs_f32();
         }
-        if *inputs.get(&VirtualKeyCode::Q).unwrap_or(&false) {
+        if inputs[VirtualKeyCode::Q as usize] {
             self.position.y -= self.speed * delta_time.as_secs_f32();
         }
     }

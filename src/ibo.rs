@@ -1,6 +1,7 @@
 use crate::gl;
 use std::mem::size_of;
 
+#[derive(Debug)]
 pub struct Ibo {
     id: u32,
     count: usize,

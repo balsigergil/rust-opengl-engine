@@ -2,6 +2,7 @@ use crate::gl;
 use crate::vertex::Vertex;
 use std::mem::size_of;
 
+#[derive(Debug)]
 pub struct Vbo {
     id: u32,
 }

@@ -6,7 +6,9 @@ use std::ptr::null;
 #[derive(Debug)]
 pub struct Mesh {
     vao: Vao,
-    indice_count: usize,
+    ibo: Ibo,
+    #[allow(dead_code)]
+    vbo: Vbo,
     textures: Vec<Texture>,
 }
 
@@ -30,7 +32,8 @@ impl Mesh {
 
         Mesh {
             vao,
-            indice_count: indices.len(),
+            ibo,
+            vbo,
             textures,
         }
     }
@@ -43,10 +46,14 @@ impl Mesh {
         unsafe {
             gl::DrawElements(
                 gl::TRIANGLES,
-                self.indice_count as GLsizei,
+                self.ibo.count() as GLsizei,
                 gl::UNSIGNED_INT,
                 null(),
             );
         }
+        for texture in &self.textures {
+            texture.unbind();
+        }
+        self.vao.unbind();
     }
 }

@@ -2,8 +2,7 @@ use egui::epaint::Shadow;
 use egui::{Align, Color32, Layout, Slider, Visuals};
 use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
-use std::collections::HashMap;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr::null;
@@ -164,7 +163,7 @@ fn main() {
     visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
     egui_glow.egui_ctx.set_visuals(visuals.clone());
 
-    let mut inputs = HashMap::new();
+    let mut inputs = [false; 512];
 
     let mut mouse_captured = false;
 
@@ -189,7 +188,7 @@ fn main() {
                         }
                         WindowEvent::KeyboardInput { input, .. } => {
                             if let Some(keycode) = input.virtual_keycode {
-                                inputs.insert(keycode, input.state == ElementState::Pressed);
+                                inputs[keycode as usize] = input.state == ElementState::Pressed;
                             }
                         }
                         WindowEvent::MouseInput { state, button, .. } => {
@@ -243,19 +242,15 @@ fn main() {
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
 
-                    shader.bind();
-
                     let model = Mat4::from_rotation_z(angle);
                     let mvp = camera.get_matrix() * model;
-                    let location = CString::new("uMVP").unwrap();
-                    gl::UniformMatrix4fv(
-                        gl::GetUniformLocation(shader.id, location.as_ptr()),
-                        1,
-                        gl::FALSE,
-                        mvp.as_ref().as_ptr(),
-                    );
+
+                    shader.bind();
+                    shader.set_uniform_mat4("uMVP", mvp);
 
                     mesh.draw();
+
+                    shader.unbind();
                 }
 
                 let (needs_repaint, shapes) =
