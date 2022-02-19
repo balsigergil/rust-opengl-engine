@@ -1,6 +1,6 @@
 use crate::gl;
-use image::io::Reader as ImageReader;
-use image::GenericImageView;
+use image::EncodableLayout;
+use log::debug;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -10,11 +10,11 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(path: &Path) -> Self {
-        let image = ImageReader::open(path)
-            .expect("Unable to open texture")
-            .decode()
-            .expect("Unable to decode image")
-            .flipv();
+        let image = image::open(path).expect("Unable to open texture").flipv();
+
+        debug!("Image format: {:?}", image.color());
+
+        let rgba_image = image.into_rgba8();
 
         let mut id = 0;
         unsafe {
@@ -35,12 +35,12 @@ impl Texture {
                 gl::TEXTURE_2D,
                 0,
                 gl::RGBA as i32,
-                image.width() as i32,
-                image.height() as i32,
+                rgba_image.width() as i32,
+                rgba_image.height() as i32,
                 0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
-                image.as_bytes().as_ptr() as *const _,
+                rgba_image.as_bytes().as_ptr() as *const _,
             );
             gl::GenerateMipmap(gl::TEXTURE_2D);
             gl::BindTexture(gl::TEXTURE_2D, 0);

@@ -1,7 +1,7 @@
-use egui::epaint::Shadow;
-use egui::{Align, Color32, Layout, Slider, Visuals};
+use egui::{Align, Layout, Slider, Visuals};
 use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
+use glow::HasContext;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::path::Path;
@@ -13,6 +13,7 @@ use glad::gl;
 use crate::camera::Camera;
 use crate::ibo::Ibo;
 use crate::mesh::Mesh;
+use crate::point_light::PointLight;
 use crate::shader::Shader;
 use crate::texture::Texture;
 use crate::utils::print_debug_infos;
@@ -35,6 +36,7 @@ mod glad;
 mod ibo;
 mod mesh;
 mod model;
+mod point_light;
 mod shader;
 mod texture;
 mod utils;
@@ -88,50 +90,52 @@ fn main() {
 
     gl::load(|s| windowed_context.get_proc_address(s));
 
-    let gl_context =
-        unsafe { glow::Context::from_loader_function(|e| windowed_context.get_proc_address(e)) };
+    let gl_context = unsafe {
+        glow::Context::from_loader_function(|e| windowed_context.get_proc_address(e).cast())
+    };
 
+    // egui
     let mut egui_glow = EguiGlow::new(&windowed_context, &gl_context);
-
     unsafe {
         gl::Viewport(0, 0, WIDTH as i32, HEIGHT as i32);
         gl::Enable(gl::DEBUG_OUTPUT);
         gl::DebugMessageCallback(debug_callback, null());
         gl::ClearColor(0.2, 0.3, 0.8, 1.0);
+        // gl::Enable(gl::DEPTH_TEST);
     }
 
     print_debug_infos();
 
     let vertices = vec![
         Vertex {
-            position: Vec3::new(-0.5, -0.5, 0.0),
+            position: Vec3::new(-0.5, 0.0, -0.5),
             normals: Default::default(),
-            color: Vec3::new(0.8, 0.3, 0.2),
+            color: Default::default(),
             texture_coordinates: Vec2::new(0.0, 0.0),
         },
         Vertex {
-            position: Vec3::new(0.5, -0.5, 0.0),
+            position: Vec3::new(0.5, 0.0, -0.5),
             normals: Default::default(),
-            color: Vec3::new(0.8, 0.3, 0.2),
+            color: Default::default(),
             texture_coordinates: Vec2::new(1.0, 0.0),
         },
         Vertex {
-            position: Vec3::new(0.5, 0.5, 0.0),
+            position: Vec3::new(0.5, 0.0, 0.5),
             normals: Default::default(),
-            color: Vec3::new(0.8, 0.3, 0.2),
+            color: Default::default(),
             texture_coordinates: Vec2::new(1.0, 1.0),
         },
         Vertex {
-            position: Vec3::new(-0.5, 0.5, 0.0),
+            position: Vec3::new(-0.5, 0.0, 0.5),
             normals: Default::default(),
-            color: Vec3::new(0.8, 0.3, 0.2),
+            color: Default::default(),
             texture_coordinates: Vec2::new(0.0, 1.0),
         },
     ];
 
     let indices = vec![0, 1, 2, 2, 3, 0];
 
-    let logo = Texture::new(Path::new("res/logo.png"));
+    let logo = Texture::new(Path::new("res/wood_floor/WoodFlooring044_COL_1K.jpg"));
     let mesh = Mesh::new(vertices, indices, vec![logo]);
 
     let mut shader = Shader::new(
@@ -142,7 +146,9 @@ fn main() {
     shader.bind();
     shader.set_uniform_1_i("uTexture", 0);
 
-    let mut camera = Camera::new(45.0, Vec3::new(0.0, 0.0, 3.0), WIDTH as f32, HEIGHT as f32);
+    let mut camera = Camera::new(45.0, Vec3::new(0.0, 1.0, 1.0), WIDTH as f32, HEIGHT as f32);
+
+    let mut point_light = PointLight::new();
 
     let mut fps_timer = Instant::now();
     let mut counter = 0;
@@ -155,13 +161,13 @@ fn main() {
 
     let mut quit = false;
 
-    let mut visuals = Visuals::default();
-    visuals.window_shadow = Shadow {
-        extrusion: 8.0,
-        color: Color32::from_black_alpha(96),
-    };
-    visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
-    egui_glow.egui_ctx.set_visuals(visuals.clone());
+    // let mut visuals = Visuals::default();
+    // visuals.window_shadow = Shadow {
+    //     extrusion: 8.0,
+    //     color: Color32::from_black_alpha(96),
+    // };
+    // visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
+    // egui_glow.egui_ctx.set_visuals(visuals.clone());
 
     let mut inputs = [false; 512];
 
@@ -240,18 +246,18 @@ fn main() {
                 angle += rotation_speed as f32 * delta_time.as_secs_f32() / 10.0;
 
                 unsafe {
-                    gl::Clear(gl::COLOR_BUFFER_BIT);
-
-                    let model = Mat4::from_rotation_z(angle);
-                    let mvp = camera.get_matrix() * model;
-
-                    shader.bind();
-                    shader.set_uniform_mat4("uMVP", mvp);
-
-                    mesh.draw();
-
-                    shader.unbind();
+                    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 }
+
+                let model = Mat4::from_rotation_y(angle);
+                let mvp = camera.get_matrix() * model;
+
+                shader.bind();
+                shader.set_uniform_mat4("uMVP", mvp);
+                mesh.draw();
+                shader.unbind();
+
+                point_light.draw(&camera);
 
                 let (needs_repaint, shapes) =
                     egui_glow.run(windowed_context.window(), |egui_ctx| {
