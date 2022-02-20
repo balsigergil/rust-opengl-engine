@@ -1,4 +1,5 @@
-use egui::{Align, Layout, Slider, Visuals};
+use egui::epaint::Shadow;
+use egui::{Align, Color32, Layout, Slider, Visuals};
 use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
 use glow::HasContext;
@@ -101,7 +102,8 @@ fn main() {
         gl::Enable(gl::DEBUG_OUTPUT);
         gl::DebugMessageCallback(debug_callback, null());
         gl::ClearColor(0.2, 0.3, 0.8, 1.0);
-        // gl::Enable(gl::DEPTH_TEST);
+        gl::Enable(gl::DEPTH_TEST);
+        gl::DepthFunc(gl::LEQUAL);
     }
 
     print_debug_infos();
