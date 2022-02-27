@@ -29,8 +29,10 @@ pub fn print_debug_infos() {
             "OpenGL profile: {}",
             if mask == gl::CONTEXT_CORE_PROFILE_BIT as i32 {
                 "core"
-            } else {
+            } else if mask == gl::CONTEXT_COMPATIBILITY_PROFILE_BIT as i32 {
                 "compatibility"
+            } else {
+                "unknown"
             }
         );
     }

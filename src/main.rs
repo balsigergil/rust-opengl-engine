@@ -1,12 +1,3 @@
-use glam::{Mat4, Vec2, Vec3};
-use std::ffi::{c_void, CStr};
-use std::os::raw::c_char;
-use std::path::Path;
-use std::ptr::null;
-use std::time::Instant;
-
-use glad::gl;
-
 use crate::camera::Camera;
 use crate::ibo::Ibo;
 use crate::mesh::Mesh;
@@ -17,6 +8,8 @@ use crate::utils::print_debug_infos;
 use crate::vao::Vao;
 use crate::vbo::Vbo;
 use crate::vertex::Vertex;
+use glad::gl;
+use glam::{Mat4, Vec2, Vec3};
 use glutin::dpi::PhysicalPosition;
 use glutin::event::{ElementState, MouseButton};
 use glutin::{
@@ -27,6 +20,11 @@ use glutin::{
 };
 use log::{error, info, trace, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
+use std::ffi::{c_void, CStr};
+use std::os::raw::c_char;
+use std::path::Path;
+use std::ptr::null;
+use std::time::Instant;
 
 mod camera;
 mod glad;
@@ -76,7 +74,7 @@ fn main() {
         .with_title("Rust OpenGL engine v0.0.1 (x64)")
         .with_resizable(false)
         .with_visible(false)
-        .with_inner_size(glutin::dpi::LogicalSize::new(WIDTH, HEIGHT));
+        .with_inner_size(glutin::dpi::PhysicalSize::new(WIDTH, HEIGHT));
 
     let windowed_context = ContextBuilder::new()
         .with_gl(GlRequest::Specific(Api::OpenGl, (4, 6)))
