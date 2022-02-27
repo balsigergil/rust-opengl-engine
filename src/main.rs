@@ -1,8 +1,4 @@
-use egui::epaint::Shadow;
-use egui::{Align, Color32, Layout, Slider, Visuals};
-use egui_glow::EguiGlow;
 use glam::{Mat4, Vec2, Vec3};
-use glow::HasContext;
 use std::ffi::{c_void, CStr};
 use std::os::raw::c_char;
 use std::path::Path;
@@ -29,7 +25,7 @@ use glutin::{
     window::WindowBuilder,
     Api, ContextBuilder, GlProfile, GlRequest,
 };
-use log::{error, trace, LevelFilter};
+use log::{error, info, trace, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 
 mod camera;
@@ -91,45 +87,38 @@ fn main() {
 
     gl::load(|s| windowed_context.get_proc_address(s));
 
-    let gl_context = unsafe {
-        glow::Context::from_loader_function(|e| windowed_context.get_proc_address(e).cast())
-    };
-
-    // egui
-    let mut egui_glow = EguiGlow::new(&windowed_context, &gl_context);
     unsafe {
         gl::Viewport(0, 0, WIDTH as i32, HEIGHT as i32);
         gl::Enable(gl::DEBUG_OUTPUT);
         gl::DebugMessageCallback(debug_callback, null());
         gl::ClearColor(0.2, 0.3, 0.8, 1.0);
         gl::Enable(gl::DEPTH_TEST);
-        gl::DepthFunc(gl::LEQUAL);
     }
 
     print_debug_infos();
 
     let vertices = vec![
         Vertex {
-            position: Vec3::new(-0.5, 0.0, -0.5),
-            normals: Default::default(),
+            position: Vec3::new(-2.0, 0.0, -2.0),
+            normals: Vec3::new(0.0, 1.0, 0.0),
             color: Default::default(),
             texture_coordinates: Vec2::new(0.0, 0.0),
         },
         Vertex {
-            position: Vec3::new(0.5, 0.0, -0.5),
-            normals: Default::default(),
+            position: Vec3::new(2.0, 0.0, -2.0),
+            normals: Vec3::new(0.0, 1.0, 0.0),
             color: Default::default(),
             texture_coordinates: Vec2::new(1.0, 0.0),
         },
         Vertex {
-            position: Vec3::new(0.5, 0.0, 0.5),
-            normals: Default::default(),
+            position: Vec3::new(2.0, 0.0, 2.0),
+            normals: Vec3::new(0.0, 1.0, 0.0),
             color: Default::default(),
             texture_coordinates: Vec2::new(1.0, 1.0),
         },
         Vertex {
-            position: Vec3::new(-0.5, 0.0, 0.5),
-            normals: Default::default(),
+            position: Vec3::new(-2.0, 0.0, 2.0),
+            normals: Vec3::new(0.0, 1.0, 0.0),
             color: Default::default(),
             texture_coordinates: Vec2::new(0.0, 1.0),
         },
@@ -146,30 +135,19 @@ fn main() {
     );
 
     shader.bind();
-    shader.set_uniform_1_i("uTexture", 0);
+    shader.set_uniform_1i("uTexture", 0);
 
     let mut camera = Camera::new(45.0, Vec3::new(0.0, 1.0, 1.0), WIDTH as f32, HEIGHT as f32);
 
     let mut point_light = PointLight::new();
+    point_light.set_position(Vec3::new(0.0, 0.3, 0.0));
+    shader.set_uniform_vec3("uLightPosition", point_light.position);
+    shader.set_uniform_vec3("uLightColor", Vec3::new(1.0, 1.0, 1.0));
 
     let mut fps_timer = Instant::now();
     let mut counter = 0;
-    let mut fps = 0;
-
-    let mut angle = 0.0;
-    let mut rotation_speed = 0;
 
     let mut last_time = Instant::now();
-
-    let mut quit = false;
-
-    // let mut visuals = Visuals::default();
-    // visuals.window_shadow = Shadow {
-    //     extrusion: 8.0,
-    //     color: Color32::from_black_alpha(96),
-    // };
-    // visuals.override_text_color = Some(Color32::from_rgb(255, 255, 255));
-    // egui_glow.egui_ctx.set_visuals(visuals.clone());
 
     let mut inputs = [false; 512];
 
@@ -180,57 +158,47 @@ fn main() {
     el.run(move |e, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        if quit {
-            *control_flow = ControlFlow::Exit;
-        }
-
         match e {
-            Event::WindowEvent { event, .. } => {
-                if !egui_glow.on_event(&event) {
-                    match event {
-                        WindowEvent::Resized(physical_size) => {
-                            windowed_context.resize(physical_size)
-                        }
-                        WindowEvent::CloseRequested | WindowEvent::Destroyed => {
-                            *control_flow = ControlFlow::Exit
-                        }
-                        WindowEvent::KeyboardInput { input, .. } => {
-                            if let Some(keycode) = input.virtual_keycode {
-                                inputs[keycode as usize] = input.state == ElementState::Pressed;
-                            }
-                        }
-                        WindowEvent::MouseInput { state, button, .. } => {
-                            if button == MouseButton::Left && state == ElementState::Pressed {
-                                windowed_context.window().set_cursor_visible(false);
-                                windowed_context
-                                    .window()
-                                    .set_cursor_position(PhysicalPosition::new(
-                                        WIDTH as f64 / 2.0,
-                                        HEIGHT as f64 / 2.0,
-                                    ))
-                                    .unwrap();
-                                mouse_captured = true;
-                            } else {
-                                windowed_context.window().set_cursor_visible(true);
-                                mouse_captured = false;
-                            }
-                        }
-                        WindowEvent::CursorMoved { position, .. } => {
-                            if mouse_captured {
-                                camera.update_orientation(position);
-                                windowed_context
-                                    .window()
-                                    .set_cursor_position(PhysicalPosition::new(
-                                        WIDTH as f64 / 2.0,
-                                        HEIGHT as f64 / 2.0,
-                                    ))
-                                    .unwrap();
-                            }
-                        }
-                        _ => (),
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
+                WindowEvent::CloseRequested | WindowEvent::Destroyed => {
+                    *control_flow = ControlFlow::Exit
+                }
+                WindowEvent::KeyboardInput { input, .. } => {
+                    if let Some(keycode) = input.virtual_keycode {
+                        inputs[keycode as usize] = input.state == ElementState::Pressed;
                     }
                 }
-            }
+                WindowEvent::MouseInput { state, button, .. } => {
+                    if button == MouseButton::Left && state == ElementState::Pressed {
+                        windowed_context.window().set_cursor_visible(false);
+                        windowed_context
+                            .window()
+                            .set_cursor_position(PhysicalPosition::new(
+                                WIDTH as f64 / 2.0,
+                                HEIGHT as f64 / 2.0,
+                            ))
+                            .unwrap();
+                        mouse_captured = true;
+                    } else {
+                        windowed_context.window().set_cursor_visible(true);
+                        mouse_captured = false;
+                    }
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    if mouse_captured {
+                        camera.update_orientation(position);
+                        windowed_context
+                            .window()
+                            .set_cursor_position(PhysicalPosition::new(
+                                WIDTH as f64 / 2.0,
+                                HEIGHT as f64 / 2.0,
+                            ))
+                            .unwrap();
+                    }
+                }
+                _ => (),
+            },
             Event::RedrawEventsCleared => windowed_context.window().request_redraw(),
             Event::RedrawRequested(_) => {
                 let delta_time = last_time.elapsed();
@@ -239,57 +207,30 @@ fn main() {
                 if fps_timer.elapsed().as_millis() < 1000 {
                     counter += 1;
                 } else {
-                    fps = counter;
+                    info!("FPS: {counter}");
                     fps_timer = Instant::now();
                     counter = 0;
                 }
 
                 camera.update_position(&inputs, delta_time);
-                angle += rotation_speed as f32 * delta_time.as_secs_f32() / 10.0;
 
                 unsafe {
                     gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 }
 
-                let model = Mat4::from_rotation_y(angle);
-                let mvp = camera.get_matrix() * model;
+                let model = Mat4::IDENTITY;
 
                 shader.bind();
-                shader.set_uniform_mat4("uMVP", mvp);
+                shader.set_uniform_mat4("uCameraViewProjection", camera.get_matrix());
+                shader.set_uniform_mat4("uModel", model);
                 mesh.draw();
                 shader.unbind();
 
                 point_light.draw(&camera);
 
-                let (needs_repaint, shapes) =
-                    egui_glow.run(windowed_context.window(), |egui_ctx| {
-                        egui::Window::new("Debug")
-                            .resizable(true)
-                            .default_size((60.0, 40.0))
-                            .show(egui_ctx, |ui| {
-                                ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                                    ui.label(format!("FPS: {}", fps));
-                                    ui.add(
-                                        Slider::new(&mut rotation_speed, 0..=100)
-                                            .text("Rotation speed"),
-                                    );
-                                    if ui.button("Quit").clicked() {
-                                        quit = true;
-                                    }
-                                    ui.allocate_space(ui.available_size());
-                                });
-                            });
-                    });
-
-                if needs_repaint {
-                    windowed_context.window().request_redraw();
-                }
-
-                egui_glow.paint(&windowed_context, &gl_context, shapes);
-
                 windowed_context.swap_buffers().unwrap();
             }
-            Event::LoopDestroyed => egui_glow.destroy(&gl_context),
+            Event::LoopDestroyed => return,
             _ => (),
         };
     })

@@ -7,12 +7,17 @@ layout (location = 3) in vec2 inTexCoord;
 
 out vec3 color;
 out vec2 texCoord;
+out vec3 normal;
+out vec3 position;
 
-uniform mat4 uMVP;
+uniform mat4 uCameraViewProjection;
+uniform mat4 uModel;
 
 void main()
 {
-    gl_Position = uMVP * vec4(inPosition, 1.0f);
+    position = vec3(uModel * vec4(inPosition, 1.0f));
     color = inColor;
     texCoord = inTexCoord;
+    normal = inNormal;
+    gl_Position = uCameraViewProjection * uModel * vec4(inPosition, 1.0f);
 }

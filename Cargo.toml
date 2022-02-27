@@ -6,14 +6,11 @@ edition = "2021"
 [profile.dist]
 inherits = "release"
 lto = true
+panic = "abort"
 
 [dependencies]
 glutin = "0.28.0"
 log = "0.4.14"
-simplelog = "0.11.1"
+simplelog = "0.11.2"
 glam = "0.20.2"
-image = "0.23.14"
-egui = "0.16.1"
-egui_glow = "0.16.0"
-glow = "0.11.2"
-gltf = "1.0.0"
+image = { version = "0.24.1", default-features = false, features = ["png", "jpeg"] }

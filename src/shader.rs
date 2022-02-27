@@ -1,4 +1,4 @@
-use glam::Mat4;
+use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fs::File;
@@ -59,10 +59,17 @@ impl Shader {
         }
     }
 
-    pub fn set_uniform_1_i(&mut self, location: &str, value: i32) {
+    pub fn set_uniform_1i(&mut self, location: &str, value: i32) {
         unsafe {
             let location_index = self.get_location(location);
             gl::Uniform1i(location_index, value);
+        }
+    }
+
+    pub fn set_uniform_vec3(&mut self, location: &str, value: Vec3) {
+        unsafe {
+            let location_index = self.get_location(location);
+            gl::Uniform3f(location_index, value.x, value.y, value.z);
         }
     }
 

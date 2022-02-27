@@ -5,7 +5,7 @@ use std::path::Path;
 pub struct PointLight {
     mesh: Mesh,
     shader: Shader,
-    position: Vec3,
+    pub position: Vec3,
     scale: Vec3,
 }
 
@@ -75,5 +75,9 @@ impl PointLight {
         self.shader.bind();
         self.shader.set_uniform_mat4("uMVP", mvp);
         self.mesh.draw();
+    }
+
+    pub fn set_position(&mut self, new_position: Vec3) {
+        self.position = new_position;
     }
 }
