@@ -3,7 +3,7 @@ use std::mem::size_of;
 
 #[derive(Debug)]
 pub struct Ibo {
-    id: u32,
+    pub id: u32,
     count: usize,
 }
 
@@ -11,15 +11,13 @@ impl Ibo {
     pub fn new(indices: &[u32]) -> Self {
         let mut id = 0;
         unsafe {
-            gl::GenBuffers(1, &mut id);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
-            gl::BufferData(
-                gl::ELEMENT_ARRAY_BUFFER,
-                (indices.len() * size_of::<u32>()) as isize,
+            gl::CreateBuffers(1, &mut id);
+            gl::NamedBufferData(
+                id,
+                (indices.len() * size_of::<u32>()) as _,
                 indices.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
         }
         Ibo {
             id,

@@ -14,21 +14,16 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>, textures: Vec<Texture>) -> Self {
-        let vao = Vao::new();
-        vao.bind();
         let vbo = Vbo::new(&vertices);
-        vbo.bind();
         let ibo = Ibo::new(&indices);
-        ibo.bind();
 
-        vao.add_layout(0, 3, gl::FLOAT, size_of::<Vertex>(), 0);
-        vao.add_layout(1, 3, gl::FLOAT, size_of::<Vertex>(), 3 * size_of::<f32>());
-        vao.add_layout(2, 3, gl::FLOAT, size_of::<Vertex>(), 6 * size_of::<f32>());
-        vao.add_layout(3, 2, gl::FLOAT, size_of::<Vertex>(), 9 * size_of::<f32>());
-
-        vao.unbind();
-        ibo.unbind();
-        vbo.unbind();
+        let vao = Vao::new()
+            .with_layout(0, 3, gl::FLOAT, 0)
+            .with_layout(1, 3, gl::FLOAT, 3 * size_of::<f32>())
+            .with_layout(2, 3, gl::FLOAT, 6 * size_of::<f32>())
+            .with_layout(3, 2, gl::FLOAT, 9 * size_of::<f32>())
+            .with_vbo(&vbo, size_of::<Vertex>() as _)
+            .with_ibo(&ibo);
 
         Mesh {
             vao,

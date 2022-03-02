@@ -4,22 +4,20 @@ use std::mem::size_of;
 
 #[derive(Debug)]
 pub struct Vbo {
-    id: u32,
+    pub id: u32,
 }
 
 impl Vbo {
     pub fn new(vertices: &[Vertex]) -> Self {
         let mut id = 0;
         unsafe {
-            gl::GenBuffers(1, &mut id);
-            gl::BindBuffer(gl::ARRAY_BUFFER, id);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (vertices.len() * size_of::<Vertex>()) as isize,
+            gl::CreateBuffers(1, &mut id);
+            gl::NamedBufferData(
+                id,
+                (vertices.len() * size_of::<Vertex>()) as _,
                 vertices.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         }
         Vbo { id }
     }

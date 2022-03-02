@@ -1,4 +1,6 @@
-use crate::gl;
+use std::{any::Any, mem::size_of};
+
+use crate::{gl, ibo::Ibo, vbo::Vbo, vertex::Vertex};
 
 #[derive(Debug)]
 pub struct Vao {
@@ -9,7 +11,7 @@ impl Vao {
     pub fn new() -> Self {
         let mut id = 0;
         unsafe {
-            gl::GenVertexArrays(1, &mut id);
+            gl::CreateVertexArrays(1, &mut id);
         }
         Vao { id }
     }
@@ -26,25 +28,36 @@ impl Vao {
         }
     }
 
-    pub fn add_layout(
-        &self,
+    pub fn with_layout(
+        self,
         index: u32,
         num_components: u32,
         component_type: u32,
-        stride: usize,
         offset: usize,
-    ) {
+    ) -> Self {
         unsafe {
-            gl::VertexAttribPointer(
+            gl::VertexArrayAttribFormat(
+                self.id,
                 index,
-                num_components as i32,
+                num_components as _,
                 component_type,
                 gl::FALSE,
-                stride as i32,
-                offset as *const _,
+                offset as _,
             );
-            gl::EnableVertexAttribArray(index);
+            gl::VertexArrayAttribBinding(self.id, index, 0);
+            gl::EnableVertexArrayAttrib(self.id, index);
         }
+        return self;
+    }
+
+    pub fn with_vbo(self, vbo: &Vbo, stride: i32) -> Self {
+        unsafe { gl::VertexArrayVertexBuffer(self.id, 0, vbo.id, 0, stride) }
+        self
+    }
+
+    pub fn with_ibo(self, ibo: &Ibo) -> Self {
+        unsafe { gl::VertexArrayElementBuffer(self.id, ibo.id) }
+        self
     }
 }
 
