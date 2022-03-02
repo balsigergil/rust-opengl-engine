@@ -6,6 +6,7 @@ edition = "2021"
 [profile.dist]
 inherits = "release"
 lto = true
+strip = true
 panic = "abort"
 
 [dependencies]
