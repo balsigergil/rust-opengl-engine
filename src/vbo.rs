@@ -21,18 +21,6 @@ impl Vbo {
         }
         Vbo { id }
     }
-
-    pub fn bind(&self) {
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.id);
-        }
-    }
-
-    pub fn unbind(&self) {
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        }
-    }
 }
 
 impl Drop for Vbo {

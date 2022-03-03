@@ -1,6 +1,4 @@
-use std::{any::Any, mem::size_of};
-
-use crate::{gl, ibo::Ibo, vbo::Vbo, vertex::Vertex};
+use crate::{gl, ibo::Ibo, vbo::Vbo};
 
 #[derive(Debug)]
 pub struct Vao {

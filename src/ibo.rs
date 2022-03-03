@@ -25,18 +25,6 @@ impl Ibo {
         }
     }
 
-    pub fn bind(&self) {
-        unsafe {
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id);
-        }
-    }
-
-    pub fn unbind(&self) {
-        unsafe {
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
-        }
-    }
-
     pub fn count(&self) -> i32 {
         self.count as i32
     }
