@@ -1,25 +1,32 @@
 use crate::gl;
 use image::EncodableLayout;
-use log::debug;
 use std::path::Path;
+
+#[derive(Debug, PartialEq)]
+pub enum TextureKind {
+    DIFFUSE,
+    SPECULAR,
+}
 
 #[derive(Debug)]
 pub struct Texture {
     id: u32,
+    kind: TextureKind
 }
 
 impl Texture {
-    pub fn new(path: &Path) -> Self {
+    pub fn new(path: &Path, kind: TextureKind) -> Self {
         let image = image::open(path).expect("Unable to open texture").flipv();
-
-        debug!("Image format: {:?}", image.color());
-
         let rgba_image = image.into_rgba8();
 
         let mut id = 0;
         unsafe {
             gl::GenTextures(1, &mut id);
-            gl::ActiveTexture(gl::TEXTURE0);
+            if kind == TextureKind::DIFFUSE {
+                gl::ActiveTexture(gl::TEXTURE0);
+            } else if kind == TextureKind::SPECULAR {
+                gl::ActiveTexture(gl::TEXTURE1);
+            }
             gl::BindTexture(gl::TEXTURE_2D, id);
 
             gl::TexParameteri(
@@ -46,12 +53,16 @@ impl Texture {
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
 
-        Texture { id }
+        Texture { id, kind }
     }
 
     pub fn bind(&self) {
         unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
+            if self.kind == TextureKind::DIFFUSE {
+                gl::ActiveTexture(gl::TEXTURE0);
+            } else if self.kind == TextureKind::SPECULAR {
+                gl::ActiveTexture(gl::TEXTURE1);
+            }
             gl::BindTexture(gl::TEXTURE_2D, self.id);
         }
     }

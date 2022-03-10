@@ -3,7 +3,7 @@ use crate::ibo::Ibo;
 use crate::mesh::Mesh;
 use crate::point_light::PointLight;
 use crate::shader::Shader;
-use crate::texture::Texture;
+use crate::texture::{Texture, TextureKind};
 use crate::utils::print_debug_infos;
 use crate::vao::Vao;
 use crate::vbo::Vbo;
@@ -124,8 +124,9 @@ fn main() {
 
     let indices = vec![0, 1, 2, 2, 3, 0];
 
-    let logo = Texture::new(Path::new("res/wood_floor/WoodFlooring044_COL_1K.jpg"));
-    let mesh = Mesh::new(vertices, indices, vec![logo]);
+    let planksDiffuse = Texture::new(Path::new("res/wood_floor/WoodFlooring044_COL_1K.jpg"), TextureKind::DIFFUSE);
+    let planksSpecular = Texture::new(Path::new("res/wood_floor/WoodFlooring044_REFL_1K.jpg"), TextureKind::SPECULAR);
+    let mesh = Mesh::new(vertices, indices, vec![planksDiffuse, planksSpecular]);
 
     let mut shader = Shader::new(
         Path::new("shaders/default.vert"),
@@ -133,7 +134,8 @@ fn main() {
     );
 
     shader.bind();
-    shader.set_uniform_1i("uTexture", 0);
+    shader.set_uniform_1i("uTextureDiffuse", 0);
+    shader.set_uniform_1i("uTextureSpecular", 1);
 
     let mut camera = Camera::new(45.0, Vec3::new(0.0, 1.0, 1.0), WIDTH as f32, HEIGHT as f32);
 
@@ -221,6 +223,7 @@ fn main() {
                 shader.bind();
                 shader.set_uniform_mat4("uCameraViewProjection", camera.get_matrix());
                 shader.set_uniform_mat4("uModel", model);
+                shader.set_uniform_vec3("uCameraPosition", camera.position);
                 mesh.draw();
                 shader.unbind();
 
