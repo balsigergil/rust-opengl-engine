@@ -17,6 +17,8 @@ uniform vec3 uCameraPosition;
 const float ambientStrength = 0.2f;
 const float shininess = 16.0;
 const vec3 specColor = vec3(1.0f, 1.0f, 1.0f);
+const float specDistanceFactor = 1.0f;
+const float specMapAdjustment = 1.5f;
 
 void main()
 {
@@ -47,8 +49,8 @@ void main()
         vec3 halfDirection = normalize(lightDirection + viewDirection);
         float specAngle = max(dot(halfDirection, normalizedNormal), 0.0);
         specularAmount = pow(specAngle, shininess);
-        specular = specularAmount * specColor;
+        specular = specularAmount * specColor * (vec3(texture(uTextureSpecular, texCoord)) + specMapAdjustment);
     }
 
-    outColor = vec4(ambient + diffuse + specular, 1.0) * texture(uTextureDiffuse, texCoord);
+    outColor = vec4(ambient + diffuse + specular / max(distance * specDistanceFactor, 1.0f), 1.0) * texture(uTextureDiffuse, texCoord);
 }
