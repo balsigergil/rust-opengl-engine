@@ -13,15 +13,16 @@ pub struct Camera {
     yaw: f32,
     speed: f32,
     sensitivity: f32,
-    width: f32,
-    height: f32,
+    width: u32,
+    height: u32,
+    fov: f32,
 }
 
 impl Camera {
-    pub fn new(fov: f32, position: Vec3, width: f32, height: f32) -> Self {
+    pub fn new(fov: f32, position: Vec3, width: u32, height: u32) -> Self {
         Camera {
             position,
-            projection: Mat4::perspective_rh(fov, width / height, 0.1, 100.0),
+            projection: Mat4::perspective_rh(fov, width as f32 / height as f32, 0.1, 100.0),
             width,
             height,
             orientation: Vec3::new(0.0, 0.0, -1.0),
@@ -30,6 +31,7 @@ impl Camera {
             sensitivity: 0.1,
             pitch: 0.0,
             yaw: 180.0,
+            fov,
         }
     }
 
@@ -39,8 +41,8 @@ impl Camera {
     }
 
     pub fn update_orientation(&mut self, position: PhysicalPosition<f64>) {
-        let delta_x = self.sensitivity * ((self.width / 2.0) - position.x as f32);
-        let delta_y = self.sensitivity * ((self.height / 2.0) - position.y as f32);
+        let delta_x = self.sensitivity * ((self.width as f32 / 2.0) - position.x as f32);
+        let delta_y = self.sensitivity * ((self.height as f32 / 2.0) - position.y as f32);
 
         self.yaw += delta_x;
         self.pitch += delta_y;
@@ -81,5 +83,11 @@ impl Camera {
         if inputs[VirtualKeyCode::Q as usize] {
             self.position.y -= self.speed * delta_time.as_secs_f32();
         }
+    }
+
+    pub fn update_viewport(&mut self, width: u32, height: u32) {
+        self.width = width;
+        self.height = height;
+        self.projection = Mat4::perspective_rh(self.fov, width as f32 / height as f32, 0.1, 100.0);
     }
 }

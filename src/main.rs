@@ -72,7 +72,6 @@ fn main() {
     let el = EventLoop::new();
     let wb = WindowBuilder::new()
         .with_title("Rust OpenGL engine v0.0.1 (x64)")
-        .with_resizable(false)
         .with_visible(false)
         .with_inner_size(glutin::dpi::PhysicalSize::new(WIDTH, HEIGHT));
 
@@ -124,9 +123,15 @@ fn main() {
 
     let indices = vec![0, 1, 2, 2, 3, 0];
 
-    let planksDiffuse = Texture::new(Path::new("res/wood_floor/WoodFlooring044_COL_1K.jpg"), TextureKind::DIFFUSE);
-    let planksSpecular = Texture::new(Path::new("res/wood_floor/WoodFlooring044_REFL_1K.jpg"), TextureKind::SPECULAR);
-    let mesh = Mesh::new(vertices, indices, vec![planksDiffuse, planksSpecular]);
+    let planks_diffuse = Texture::new(
+        Path::new("res/wood_floor/WoodFlooring044_COL_1K.jpg"),
+        TextureKind::DIFFUSE,
+    );
+    let planks_specular = Texture::new(
+        Path::new("res/wood_floor/WoodFlooring044_REFL_1K.jpg"),
+        TextureKind::SPECULAR,
+    );
+    let mesh = Mesh::new(vertices, indices, vec![planks_diffuse, planks_specular]);
 
     let mut shader = Shader::new(
         Path::new("shaders/default.vert"),
@@ -137,7 +142,7 @@ fn main() {
     shader.set_uniform_1i("uTextureDiffuse", 0);
     shader.set_uniform_1i("uTextureSpecular", 1);
 
-    let mut camera = Camera::new(45.0, Vec3::new(0.0, 1.0, 1.0), WIDTH as f32, HEIGHT as f32);
+    let mut camera = Camera::new(45.0, Vec3::new(0.0, 1.0, 1.0), WIDTH, HEIGHT);
 
     let mut point_light = PointLight::new();
     point_light.set_position(Vec3::new(0.0, 0.3, 0.0));
@@ -160,7 +165,14 @@ fn main() {
 
         match e {
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
+                WindowEvent::Resized(physical_size) => {
+                    windowed_context.resize(physical_size);
+                    let window_size = windowed_context.window().inner_size();
+                    camera.update_viewport(window_size.width, window_size.height);
+                    unsafe {
+                        gl::Viewport(0, 0, window_size.width as i32, window_size.height as i32);
+                    }
+                }
                 WindowEvent::CloseRequested | WindowEvent::Destroyed => {
                     *control_flow = ControlFlow::Exit
                 }
@@ -172,11 +184,12 @@ fn main() {
                 WindowEvent::MouseInput { state, button, .. } => {
                     if button == MouseButton::Left && state == ElementState::Pressed {
                         windowed_context.window().set_cursor_visible(false);
+                        let window_size = windowed_context.window().inner_size();
                         windowed_context
                             .window()
                             .set_cursor_position(PhysicalPosition::new(
-                                WIDTH as f64 / 2.0,
-                                HEIGHT as f64 / 2.0,
+                                window_size.width as f64 / 2.0,
+                                window_size.height as f64 / 2.0,
                             ))
                             .unwrap();
                         mouse_captured = true;
@@ -188,11 +201,12 @@ fn main() {
                 WindowEvent::CursorMoved { position, .. } => {
                     if mouse_captured {
                         camera.update_orientation(position);
+                        let window_size = windowed_context.window().inner_size();
                         windowed_context
                             .window()
                             .set_cursor_position(PhysicalPosition::new(
-                                WIDTH as f64 / 2.0,
-                                HEIGHT as f64 / 2.0,
+                                window_size.width as f64 / 2.0,
+                                window_size.height as f64 / 2.0,
                             ))
                             .unwrap();
                     }
